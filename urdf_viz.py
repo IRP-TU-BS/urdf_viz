@@ -45,6 +45,7 @@ class UrdfVisualizer(pr.Viewer):
   """
   def __init__(self, path, filename="model.urdf", kinematics=kin.Kinematics()):
     global HELP_TEXT
+    np.set_printoptions(precision=4, suppress=True)
     self._scene = pr.Scene()
 
     pose = np.array([[ 1,  0,  0,  0],
@@ -61,16 +62,18 @@ class UrdfVisualizer(pr.Viewer):
     self._active_axis = 0
     self._joint_vals = {name : 0 for name in self._utm._joints}
     self._ee_pose = np.array([.375, .0, .75, 3.1416, .0, .0, .0])
+    # self._ee_pose = np.array([.5545, .0, .6245, 3.1416, .0, .0, .0])
     self._diff = .125
     self._trace = None
     self._untrace = None
     self._info = {}
     self._ik_status = [0]
-    self._ik_choice = 0
+    self._ik_choice = -1
     self._pending_input = (None, "")
     self._rendering = False
     self._hidden_visuals = []
     self._kinematics = kinematics
+    self._geometries = {}
     self.apply_ik()
 
     super().__init__(self.scene, use_raymond_lighting=True, run_in_thread=True,
@@ -79,27 +82,33 @@ class UrdfVisualizer(pr.Viewer):
     self._rendering = True
 
     ascii_map = [
-        (0x23, -1,     "#:           wrist/redundancy angle (w/r are blocked)"),
-        (0x2B, "2.",   "+:           increase (double) diff (larger steps)"),
-        (0x2D, ".5",   "-:           decrease (halve) diff (smaller steps)"),
-        (0x68, "h",    "h:           print this help text"),
-        (0x6B, "k",    "k:           print something"),
-        (0x70, "p",    "p:           print scene info"),
-        (0x74, "t",    "t:           enable/disable trace for joint"),
-        (0x75, "u",    "u:           call update"),
-        (0x76, "v",    "v:           hide/show visuals")]
+        (0x20,   " ",     "space:       set joint/axis value by number"),
+        (0x23,   -1,      "#:           wrist/redundancy angle (w/r are blocked)"),
+        (0x2B,   "+",     "+:           increase (double) diff (larger steps)"),
+        (0x2D,   "-",     "-:           decrease (halve) diff (smaller steps)"),
+        (0x2E,   ".",     ""),
+        (0x68,   "h",     "h:           print this help text"),
+        (0x6B,   "k",     "k:           print something"),
+        (0x70,   "p",     "p:           print scene info"),
+        (0x74,   "t",     "t:           enable/disable trace for joint"),
+        (0x75,   "u",     "u:           call update"),
+        (0x76,   "v",     "v:           hide/show visuals")]
     ascii_map += [(k + 0x30, k, "") for k in range(9)]
     ascii_map += [
-        (0x39, 9,      "0..9:        joint indices"),
+        (0x39,   9,       "0..9:        joint indices"),
         (0x78, -4, ""), (0x79, -3, ""),
-        (0x3C, -2,     "x,y,|:       select x/y/z axis (z key is blocked)"),
-        (0xff51, "r-", "arrow left:  negative rotation"),
-        (0xff52, "t+", "arrow up:    positive translation"),
-        (0xff53, "r+", "arrow right: positive rotation"),
-        (0xff54, "t-", "arrow down:  negative translation"),
+        (0x3C,   -2,      "x,y,|:       select x/y/z axis (z key is blocked)"),
+        (0xff08, "back",  ""),
+        (0xff09, "tab",  ""),
+        (0xff0D, "enter", ""),
+        (0xff1B, "esc",   ""),
+        (0xff51, "r-",    "arrow left:  negative rotation"),
+        (0xff52, "t+",    "arrow up:    positive translation"),
+        (0xff53, "r+",    "arrow right: positive rotation"),
+        (0xff54, "t-",    "arrow down:  negative translation"),
         (0xffbe, "0", ""), (0xffbf, "1", ""), (0xffc0, "2", ""),
-        (0xffc1, "3",  "f1..f4:      switch between ik solutions"),
-        (0xffc2, "-1", "f5:          min diff ik solution")]
+        (0xffc1, "3",     "f1..f4:      switch between ik solutions"),
+        (0xffc2, "-1",    "f5:          min diff ik solution")]
     HELP_TEXT += "\nPossible keyboard shortcuts:\n"
     for ascii, value, text in ascii_map:
       self.registered_keys[ascii] = (user_input, [self, value])
@@ -150,6 +159,46 @@ class UrdfVisualizer(pr.Viewer):
       for node in self._utm.nodes:
         self._add_frame(node, frame)
 
+    for name, geom in self._geometries.items():
+      tf = np.eye(4)
+      if len(geom[1]) == 2:
+        if len(geom[1][0]) == 2:
+          a_start = np.array(self.utm.get_transform(geom[1][0][0], frame)[:3,3])
+          a_end = np.array(self.utm.get_transform(geom[1][0][1], frame)[:3,3])
+          vec = a_end - a_start
+          a_norm = np.linalg.norm(vec)
+          if a_norm > 0: vec /= a_norm
+          point = np.array(self.utm.get_transform(geom[1][1], frame)[:3,3])
+          vec_sp = point - a_start
+          pos = a_start + np.inner(vec_sp, vec) * vec
+          geom[0].radius = np.linalg.norm(point - pos)
+        else:
+          start = np.array(self.utm.get_transform(geom[1][0], frame)[:3,3])
+          end = np.array(self.utm.get_transform(geom[1][1], frame)[:3,3])
+          vec = end - start
+          geom[0].length = np.linalg.norm(vec)
+          if geom[0].length > 0: vec /= geom[0].length
+          pos = (start + end) / 2
+        xvec = np.cross([0, 0, 1], vec) if vec[2] < 1 else [1, 0, 0]
+        norm = np.linalg.norm(xvec)
+        if norm > 0: xvec /= norm
+        yvec = np.cross(vec, xvec)
+        norm = np.linalg.norm(yvec)
+        if norm > 0: yvec /= norm
+        tf = [[xvec[0], yvec[0], vec[0], pos[0]],
+              [xvec[1], yvec[1], vec[1], pos[1]],
+              [xvec[2], yvec[2], vec[2], pos[2]],
+              [0, 0, 0, 1]]
+      else:
+        tf = geom[1]
+      node = None
+      nodes = self.scene.get_nodes(name=name)
+      if len(nodes) > 0:
+        self.scene.remove_node(nodes.pop())
+      node = geom[0].show(self, tf)
+      self._set_visibility(node, name not in self._hidden_visuals)
+
+
     if trace: self.trace()
 
     self.update_info()
@@ -160,7 +209,15 @@ class UrdfVisualizer(pr.Viewer):
 
   def _add_objects(self, objects, frame):
     for obj in objects:
-      node = obj.show(self, frame)
+      A2B = self.utm.get_transform(obj.frame, frame)
+
+      node = None
+      nodes = self.scene.get_nodes(name=obj.frame)
+      if len(nodes) > 0:
+        node = nodes.pop()
+        self.scene.set_pose(node, pose=A2B)
+      else:
+        node = obj.show(self, A2B)
       self._set_visibility(node, obj.frame not in self._hidden_visuals)
 
 
@@ -226,7 +283,7 @@ class UrdfVisualizer(pr.Viewer):
         j += 1
     if update:
       maxDiff = max(abs(goal - q))
-      if maxDiff > 1: print("max diff:", maxDiff)
+      # if maxDiff > np.math.pi / 2: print("max diff:", maxDiff)
       self.update(trace=trace)
 
 
@@ -234,11 +291,14 @@ class UrdfVisualizer(pr.Viewer):
     global HELP_TEXT
     if self.handle_pending(key):
       if not self._pending_input[0]: self.remove_info("PROMPT")
-    elif key in range(-4, len(self._utm._joints) + 1) and key != 0:
+    elif key == 0:
+      axis = self._active_axis
+      self.set_axis(axis if axis > -2 else axis - 3, 0)
+    elif key in range(-4, len(self._utm._joints) + 1):
       self._active_axis = key
       self.update_info()
-    elif key in [".5", "2."]:
-      self._diff *= float(key)
+    elif key in ["-", "+"]:
+      self._diff *= 2 if key == "+" else .5
       self.update_info()
     elif key in ["t+", "t-", "r+", "r-"]:
       self.move_axis(change=key)
@@ -292,10 +352,23 @@ class UrdfVisualizer(pr.Viewer):
         self.add_info(key, info[0], info[1], info[2], info[3], info[4], info[5],
                       info[6], info[-2] - 1, info[-1])
 
+  def get_axis_name(self, axis):
+    name = ""
+    if axis < 0:
+      name = ["tx", "ty", "tz", "rx", "ry", "rz", "rr"][axis]
+    else:
+      name = list(self._utm._joints.keys())[axis - 1]
+    return name
+
   def handle_pending(self, key):
     valid = False
 
-    if key == "t":
+    if key == " " and self._active_axis != 0:
+      valid = True
+      prompt = f'put value for {self.get_axis_name(self._active_axis)}:'
+      self.add_info("PROMPT", prompt)
+      self._pending_input = (key, "", self._active_axis)
+    elif key == "t":
       valid = True
       numJoints = str(len(self._utm._joints))
       prompt = 'press number key for joint index (1 .. ' + numJoints + ')'
@@ -316,6 +389,32 @@ class UrdfVisualizer(pr.Viewer):
       prompt = 'press number key to show/hide visual (see console output)'
       self.add_info("PROMPT", prompt)
       self._pending_input = (key, dec)
+    elif self._pending_input[0] == " ":
+      axis = self._pending_input[2]
+      value = self._pending_input[1]
+      if key == "enter":
+        valid = True
+        self.set_axis(axis, float(value))
+        self._pending_input = (None, "")
+      elif key == "esc":
+        valid = True
+        self._pending_input = (None, "")
+      elif key == "tab" and axis < 0:
+        valid = True
+        axis = axis + (3 if axis < -4 else -3)
+      elif key in range(10):
+        valid = True
+        value += f"{key}"
+      elif key == "." and not key in value:
+        valid = True
+        value += "."
+      elif key == "-" and not key in value:
+        valid = True
+        value = "-" + value
+      if self._pending_input[0] == " ":
+        self._pending_input = (" ", value, axis)
+        prompt = f'put value for {self.get_axis_name(axis)}: {value}'
+        self.add_info("PROMPT", prompt)
     elif self._pending_input[0] == "t":
       if key in range(len(self._utm._joints)):
         valid = True
@@ -354,6 +453,15 @@ class UrdfVisualizer(pr.Viewer):
       joint = list(self._utm._joints.keys())[axis - 1]
       qi = self.get_joint(joint) if joint in self._joint_vals else 0
       self.set_joint(joint, qi + diff * np.pi)
+      self.update(trace=False)
+
+  def set_axis(self, axis, val):
+    if axis < 0:
+      self._ee_pose[axis] = val
+      self.apply_ik(trace=axis<-1)
+    elif axis > 0 and axis <= len(self._utm._joints):
+      joint = list(self._utm._joints.keys())[axis - 1]
+      self.set_joint(joint, val)
       self.update(trace=False)
 
 
@@ -408,168 +516,157 @@ class UrdfVisualizer(pr.Viewer):
       self._scene.add(trace, name=frame)
     self._untrace = self._trace
 
+  def add_geometry(self, name, geom, tf):
+    geom.frame = name
+    self._geometries[name] = [geom, tf]
+    self.update()
+
+  def add_line(self, name, start, end, color = [0, 0, 255, 255]):
+    cyl = urdf.Cylinder(name, ".", ".", color)
+    cyl.length = 1
+    cyl.radius = .004
+    self.add_geometry(name, cyl, [start, end])
+
+  def add_plane(self, name, normal, point, color = [0, 0, 255, 255]):
+    cyl = urdf.Cylinder(name, ".", ".", color)
+    cyl.length = .004
+    cyl.radius = 1
+    self.add_geometry(name, cyl, [normal, point])
+
+  def hide_object(self, name):
+    self._hidden_visuals.append(name)
+    self.update()
 
 def user_input(viewer, uviz, input):
+  # print(f"key: {input}")
   uviz.user_input(input)
 
 
 # We modify the shape objects to include a function that renders them
 MATERIAL = pr.MetallicRoughnessMaterial(alphaMode="BLEND", metallicFactor=0.0)
 
-def box_show(self, uviz, frame):
+def box_show(self, uviz, tf):
   """Render box."""
-  A2B = uviz.utm.get_transform(self.frame, frame)
+  corners = np.array([
+      [0, 0, 0],
+      [0, 0, 1],
+      [0, 1, 0],
+      [0, 1, 1],
+      [1, 0, 0],
+      [1, 0, 1],
+      [1, 1, 0],
+      [1, 1, 1]
+  ])
+  corners = (corners - 0.5) * self.size
+  corners = transform(tf, np.hstack((corners, np.ones((len(corners), 1)))))[:, :3]
 
-  node = None
-  nodes = uviz.scene.get_nodes(name=self.frame)
-  if len(nodes) > 0:
-    node = nodes.pop()
-    uviz.scene.set_pose(node, pose=A2B)
-  else:
-    corners = np.array([
-        [0, 0, 0],
-        [0, 0, 1],
-        [0, 1, 0],
-        [0, 1, 1],
-        [1, 0, 0],
-        [1, 0, 1],
-        [1, 1, 0],
-        [1, 1, 1]
-    ])
-    corners = (corners - 0.5) * self.size
-    corners = transform(
-        A2B, np.hstack((corners, np.ones((len(corners), 1)))))[:, :3]
+  mesh = trimesh.Trimesh(
+      vertices=corners,
+      faces=[[0, 1, 2], [2, 3, 4], [4, 5, 6], [6, 7, 0]]).bounding_box
 
-    mesh = trimesh.Trimesh(
-        vertices=corners,
-        faces=[[0, 1, 2], [2, 3, 4], [4, 5, 6], [6, 7, 0]]).bounding_box
-
-    MATERIAL.baseColorFactor = self.color
-    mesh = pr.Mesh.from_trimesh(mesh, material=MATERIAL)
-    node = uviz.scene.add(mesh, name=self.frame)
+  MATERIAL.baseColorFactor = self.color
+  mesh = pr.Mesh.from_trimesh(mesh, material=MATERIAL)
+  node = uviz.scene.add(mesh, name=self.frame)
 
   return node
 
 urdf.Box.show = box_show
 
 
-def sphere_show(self, uviz, frame):
+def sphere_show(self, uviz, tf):
   """Render sphere."""
-  A2B = uviz.utm.get_transform(self.frame, frame)
+  phi, theta = np.mgrid[0.0:np.pi:100j, 0.0:2.0 * np.pi:100j]
+  X = self.radius * np.sin(phi) * np.cos(theta)
+  Y = self.radius * np.sin(phi) * np.sin(theta)
+  Z = self.radius * np.cos(phi)
 
-  node = None
-  nodes = uviz.scene.get_nodes(name=self.frame)
-  if len(nodes) > 0:
-    node = nodes.pop()
-    uviz.scene.set_pose(node, pose=A2B)
-  else:
-    phi, theta = np.mgrid[0.0:np.pi:100j, 0.0:2.0 * np.pi:100j]
-    X = self.radius * np.sin(phi) * np.cos(theta)
-    Y = self.radius * np.sin(phi) * np.sin(theta)
-    Z = self.radius * np.cos(phi)
+  vertices = []
+  faces = []
+  for i in range(X.shape[0] - 1):
+    for j in range(X.shape[1] - 1):
+      v1 = [X[i, j], Y[i, j], Z[i, j]]
+      v2 = [X[i, j + 1], Y[i, j + 1], Z[i, j + 1]]
+      v3 = [X[i + 1, j], Y[i + 1, j], Z[i + 1, j]]
+      vertices.extend([v1, v2, v3])
+      faces.append(list(range(len(vertices) - 3, len(vertices))))
 
-    vertices = []
-    faces = []
-    for i in range(X.shape[0] - 1):
-      for j in range(X.shape[1] - 1):
-        v1 = [X[i, j], Y[i, j], Z[i, j]]
-        v2 = [X[i, j + 1], Y[i, j + 1], Z[i, j + 1]]
-        v3 = [X[i + 1, j], Y[i + 1, j], Z[i + 1, j]]
-        vertices.extend([v1, v2, v3])
-        faces.append(list(range(len(vertices) - 3, len(vertices))))
-
-    mesh = trimesh.Trimesh(vertices=vertices, faces=faces).convex_hull
-    MATERIAL.baseColorFactor = self.color
-    mesh = pr.Mesh.from_trimesh(mesh, material=MATERIAL)
-    node = uviz.scene.add(mesh, name=self.frame, pose=A2B)
+  mesh = trimesh.Trimesh(vertices=vertices, faces=faces).convex_hull
+  MATERIAL.baseColorFactor = self.color
+  mesh = pr.Mesh.from_trimesh(mesh, material=MATERIAL)
+  node = uviz.scene.add(mesh, name=self.frame, pose=tf)
 
   return node
 
 urdf.Sphere.show = sphere_show
 
 
-def cylinder_show(self, uviz, frame):
+def cylinder_show(self, uviz, tf):
   """Render cylinder."""
-  A2B = uviz.utm.get_transform(self.frame, frame)
+  axis_start = np.eye(4).dot(np.array([0, 0, -0.5 * self.length, 1]))[:3]
+  axis_end = np.eye(4).dot(np.array([0, 0, 0.5 * self.length, 1]))[:3]
+  axis = axis_end - axis_start
+  axis /= self.length
 
-  node = None
-  nodes = uviz.scene.get_nodes(name=self.frame)
-  if len(nodes) > 0:
-    node = nodes.pop()
-    uviz.scene.set_pose(node, pose=A2B)
-  else:
-    axis_start = np.eye(4).dot(np.array([0, 0, -0.5 * self.length, 1]))[:3]
-    axis_end = np.eye(4).dot(np.array([0, 0, 0.5 * self.length, 1]))[:3]
-    axis = axis_end - axis_start
-    axis /= self.length
+  not_axis = np.array([1, 0, 0])
+  if (axis == not_axis).all():
+      not_axis = np.array([0, 1, 0])
 
-    not_axis = np.array([1, 0, 0])
-    if (axis == not_axis).all():
-        not_axis = np.array([0, 1, 0])
+  n1 = np.cross(axis, not_axis)
+  n1 /= np.linalg.norm(n1)
+  n2 = np.cross(axis, n1)
 
-    n1 = np.cross(axis, not_axis)
-    n1 /= np.linalg.norm(n1)
-    n2 = np.cross(axis, n1)
+  t = np.linspace(0, self.length, 3)
+  theta = np.linspace(0, 2 * np.pi, 50)
+  t, theta = np.meshgrid(t, theta)
+  X, Y, Z = [axis_start[i] + axis[i] * t +
+            self.radius * np.sin(theta) * n1[i] +
+            self.radius * np.cos(theta) * n2[i] for i in [0, 1, 2]]
 
-    t = np.linspace(0, self.length, 3)
-    theta = np.linspace(0, 2 * np.pi, 50)
-    t, theta = np.meshgrid(t, theta)
-    X, Y, Z = [axis_start[i] + axis[i] * t +
-              self.radius * np.sin(theta) * n1[i] +
-              self.radius * np.cos(theta) * n2[i] for i in [0, 1, 2]]
+  vertices = []
+  faces = []
+  for i in range(X.shape[0] - 1):
+    for j in range(X.shape[1] - 1):
+      v1 = [X[i, j], Y[i, j], Z[i, j]]
+      v2 = [X[i, j + 1], Y[i, j + 1], Z[i, j + 1]]
+      v3 = [X[i + 1, j], Y[i + 1, j], Z[i + 1, j]]
+      vertices.extend([v1, v2, v3])
+      faces.append(list(range(len(vertices) - 3, len(vertices))))
 
-    vertices = []
-    faces = []
-    for i in range(X.shape[0] - 1):
-      for j in range(X.shape[1] - 1):
-        v1 = [X[i, j], Y[i, j], Z[i, j]]
-        v2 = [X[i, j + 1], Y[i, j + 1], Z[i, j + 1]]
-        v3 = [X[i + 1, j], Y[i + 1, j], Z[i + 1, j]]
-        vertices.extend([v1, v2, v3])
-        faces.append(list(range(len(vertices) - 3, len(vertices))))
-
-    mesh = trimesh.Trimesh(vertices=vertices, faces=faces).convex_hull
-    MATERIAL.baseColorFactor = self.color
-    mesh = pr.Mesh.from_trimesh(mesh, material=MATERIAL)
-    node = uviz.scene.add(mesh, name=self.frame, pose=A2B)
+  mesh = trimesh.Trimesh(vertices=vertices, faces=faces).convex_hull
+  MATERIAL.baseColorFactor = self.color
+  mesh = pr.Mesh.from_trimesh(mesh, material=MATERIAL)
+  node = uviz.scene.add(mesh, name=self.frame, pose=tf)
 
   return node
 
 urdf.Cylinder.show = cylinder_show
 
 
-def mesh_show(self, uviz, frame):
+def mesh_show(self, uviz, tf):
   """Render mesh."""
   global alpha
   if self.mesh_path is None:
     print("No mesh path given")
     return None
-  A2B = uviz.utm.get_transform(self.frame, frame)
 
-  node = None
-  nodes = uviz.scene.get_nodes(name=self.frame)
-  if len(nodes) > 0:
-    node = nodes.pop()
-    uviz.scene.set_pose(node, pose=A2B)
+  scale = self.scale
+  file = self.filename
+  mesh = trimesh.load(file)
+
+  if self.filename[-3:] == "dae": # handle sub meshes in collada files
+    node = pr.Node(name=self.frame, matrix=tf)
+    uviz.scene.add_node(node)
+    for geo in mesh.geometry:
+      geomesh = mesh.geometry[geo]
+      geomesh.vertices *= scale
+      B2C = mesh.graph[geo][0] # get the additional mesh transformation
+      geomesh = pr.Mesh.from_trimesh(geomesh)
+      uviz.scene.add(geomesh, name=geo, parent_node=node, pose=B2C)
   else:
-    scale = self.scale
-    file = self.filename
-    mesh = trimesh.load(file)
-
-    if self.filename[-3:] == "dae": # handle sub meshes in collada files
-      node = pr.Node(name=self.frame, matrix=A2B)
-      uviz.scene.add_node(node)
-      for geo in mesh.geometry:
-        geomesh = mesh.geometry[geo]
-        geomesh.vertices *= scale
-        B2C = mesh.graph[geo][0] # get the additional mesh transformation
-        geomesh = pr.Mesh.from_trimesh(geomesh)
-        uviz.scene.add(geomesh, name=geo, parent_node=node, pose=B2C)
-    else:
-      mesh.vertices *= scale
-      MATERIAL.baseColorFactor = self.color
-      mesh = pr.Mesh.from_trimesh(mesh, material=MATERIAL)
-      node = uviz.scene.add(mesh, name=self.frame, pose=A2B)
+    mesh.vertices *= scale
+    MATERIAL.baseColorFactor = self.color
+    mesh = pr.Mesh.from_trimesh(mesh, material=MATERIAL)
+    node = uviz.scene.add(mesh, name=self.frame, pose=tf)
 
   return node
 
