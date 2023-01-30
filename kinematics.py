@@ -6,14 +6,14 @@ class Kinematics:
   def __init__(self):
     self.end_effector = numpy.zeros(3)
 
-  def setEndEffector(self, ee):
+  def setEndEffector(self, ee, name = ""):
     self.end_effector = ee
 
-  def ik(self, pose, qInOut, optionals = [], results=[]):
+  def ik(self, pose, qInOut, name = "", optionals = [], results=[]):
     print("No kinematics library defined! Please use subclass of Kinematics for this!")
     return numpy.array(qInOut)
 
-  def fk(self, joints, resultList=[0]):
+  def fk(self, joints, name = "", resultList=[0]):
     print("No kinematics library defined! Please use subclass of Kinematics for this!")
     return numpy.zeros(6)
 

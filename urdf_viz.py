@@ -39,6 +39,7 @@ ALIGNS = [[TextAlign.TOP_LEFT,    TextAlign.TOP_CENTER,    TextAlign.TOP_RIGHT],
           [TextAlign.CENTER_LEFT, TextAlign.CENTER,        TextAlign.CENTER_RIGHT],
           [TextAlign.BOTTOM_LEFT, TextAlign.BOTTOM_CENTER, TextAlign.BOTTOM_RIGHT]]
 HELP_TEXT = ""
+M_PI = np.math.pi
 
 class UrdfVisualizer(pr.Viewer):
   """
@@ -61,8 +62,8 @@ class UrdfVisualizer(pr.Viewer):
     self._opacity = 1.0
     self._active_axis = 0
     self._joint_vals = {name : 0 for name in self._utm._joints}
-    self._ee_pose = np.array([.375, .0, .75, 3.1416, .0, .0, .0])
-    # self._ee_pose = np.array([.5545, .0, .6245, 3.1416, .0, .0, .0])
+    self._ee_pose = np.array([.375, .0, .75, M_PI, .0, .0, .0])
+    # self._ee_pose = np.array([.5545, .0, .6245, M_PI, .0, .0, .0])
     self._diff = .125
     self._trace = None
     self._untrace = None
@@ -274,8 +275,9 @@ class UrdfVisualizer(pr.Viewer):
 
   def apply_ik(self, update=True, trace=False):
     q = [self._joint_vals[name] for name in self._joint_vals]
-    goal = self._kinematics.ik(self._ee_pose[:6], q, [self._ee_pose[6], self._ik_choice],
-                               self._ik_status)
+    goal = self._kinematics.ik(self._ee_pose[:6], q,
+                               optionals = [self._ee_pose[6], self._ik_choice],
+                               results = self._ik_status)
     if not np.isnan(goal).any():
       j = 0
       for joint in self._utm._joints.keys():
@@ -478,25 +480,26 @@ class UrdfVisualizer(pr.Viewer):
 
 
   def trace(self):
+    points = [[], [], [], []]
     if self._untrace:
       frame = self._untrace
-      for node in self._scene.get_nodes(name=frame + "_trace"):
-        self._scene.remove_node(node)
+      for i in range(len(points)):
+        for node in self._scene.get_nodes(name=f'{frame}_trace_{i}'):
+          self._scene.remove_node(node)
       self._untrace = None
 
     if not self._trace is None:
       w = self._ee_pose[-1]
-      points = []
       ik_errors = []
       numPoints = 64
       ik = self._ik_choice
-      for self._ik_choice in [ik]:#range(4):
+      for self._ik_choice in range(len(points)):
         self._ee_pose[-1] = 0
         for i in range(numPoints):
           self._ee_pose[-1] += 2 * np.pi / numPoints
           self.apply_ik(False)
           A2B = self._utm.get_transform(self._trace, "world")
-          points += [A2B[:3,3]]
+          points[self._ik_choice] += [A2B[:3,3]]
           if self._ik_status[0] != 0:
             ik_errors += [(i, self._ik_status)]
       self._ee_pose[-1] = w
@@ -507,13 +510,20 @@ class UrdfVisualizer(pr.Viewer):
       frame = self._trace + "_trace"
       if not self._utm.has_frame(frame):
         self._utm.add_transform(frame, "world", np.eye(4))
-      pnt = trimesh.creation.uv_sphere(radius=.004)
-      pnt.visual.vertex_colors = [1.0, 0.0, 0.0]
-      tfs = np.tile(np.eye(4), (len(points), 1, 1))
-      tfs[:,:3,3] = points
-      # trace = pr.Mesh.from_points(points, colors=[255, 0, 0, 255] * len(points))
-      trace = pr.Mesh.from_trimesh(pnt, poses=tfs)
-      self._scene.add(trace, name=frame)
+      coneTf = np.eye(4)
+      coneTf[2][3] = -.0015
+      meshes = [trimesh.creation.uv_sphere(radius=.002),
+                trimesh.creation.box(extents=[.003]*3),
+                trimesh.creation.cylinder(radius=.002, height=.003),
+                trimesh.creation.cone(radius=.003, height=.004, transform=coneTf)]
+      colors = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 1.0]]
+      for i in range(len(points)):
+        meshes[i].visual.vertex_colors = colors[i]
+        tfs = np.tile(np.eye(4), (len(points[i]), 1, 1))
+        tfs[:,:3,3] = points[i]
+        # trace = pr.Mesh.from_points(points[i], colors=colors[i] * len(points))
+        trace = pr.Mesh.from_trimesh(meshes[i], poses=tfs)
+        self._scene.add(trace, name=f'{frame}_{i}')
     self._untrace = self._trace
 
   def add_geometry(self, name, geom, tf):
