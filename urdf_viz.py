@@ -61,7 +61,7 @@ class UrdfVisualizer(pr.Viewer):
 
     self._opacity = 1.0
     self._active_axis = 0
-    self._joint_vals = {name : 0 for name in self._utm._joints}
+    self._joint_vals = {name : 0 for name in self._utm._joints if self._utm._joints[name][-1] != 'fixed'}
     self._ee_pose = np.array([.375, .0, .75, M_PI, .0, .0, .0])
     # self._ee_pose = np.array([.5545, .0, .6245, M_PI, .0, .0, .0])
     self._diff = .125
@@ -280,7 +280,7 @@ class UrdfVisualizer(pr.Viewer):
                                results = self._ik_status)
     if not np.isnan(goal).any():
       j = 0
-      for joint in self._utm._joints.keys():
+      for joint in self._joint_vals.keys():
         self.set_joint(joint, goal[j])
         j += 1
     if update:
@@ -296,7 +296,7 @@ class UrdfVisualizer(pr.Viewer):
     elif key == 0:
       axis = self._active_axis
       self.set_axis(axis if axis > -2 else axis - 3, 0)
-    elif key in range(-4, len(self._utm._joints) + 1):
+    elif key in range(-4, len(self._joint_vals) + 1):
       self._active_axis = key
       self.update_info()
     elif key in ["-", "+"]:
@@ -359,7 +359,7 @@ class UrdfVisualizer(pr.Viewer):
     if axis < 0:
       name = ["tx", "ty", "tz", "rx", "ry", "rz", "rr"][axis]
     else:
-      name = list(self._utm._joints.keys())[axis - 1]
+      name = list(self._joint_vals.keys())[axis - 1]
     return name
 
   def handle_pending(self, key):
@@ -372,13 +372,13 @@ class UrdfVisualizer(pr.Viewer):
       self._pending_input = (key, "", self._active_axis)
     elif key == "t":
       valid = True
-      numJoints = str(len(self._utm._joints))
+      numJoints = str(len(self._joint_vals))
       prompt = 'press number key for joint index (1 .. ' + numJoints + ')'
       self.add_info("PROMPT", prompt)
       self._pending_input = (key, "")
     elif key == "v":
       valid = True
-      numJoints = str(len(self._utm._joints) - 1)
+      numJoints = str(len(self._joint_vals) - 1)
       i = 0
       nodes = [n.name for n in self.scene.get_nodes() if n.name and "visual" in n.name]
       dec = self._pending_input[1] + 1 if self._pending_input[0] == key else 0
@@ -418,9 +418,9 @@ class UrdfVisualizer(pr.Viewer):
         prompt = f'put value for {self.get_axis_name(axis)}: {value}'
         self.add_info("PROMPT", prompt)
     elif self._pending_input[0] == "t":
-      if key in range(len(self._utm._joints)):
+      if key in range(len(self._joint_vals)):
         valid = True
-        joint = list(self._utm._joints.keys())[key]
+        joint = list(self._joint_vals.keys())[key]
         frame = "visual:" + self._utm._joints[joint][1] + "/0"
         self._trace = frame if self._untrace != frame else None
         self._pending_input = (None, "")
@@ -451,8 +451,8 @@ class UrdfVisualizer(pr.Viewer):
       else:
         self._ee_pose[axis] += diff * np.pi
       self.apply_ik(trace=axis<-1)
-    elif axis > 0 and axis <= len(self._utm._joints):
-      joint = list(self._utm._joints.keys())[axis - 1]
+    elif axis > 0 and axis <= len(self._joint_vals):
+      joint = list(self._joint_vals.keys())[axis - 1]
       qi = self.get_joint(joint) if joint in self._joint_vals else 0
       self.set_joint(joint, qi + diff * np.pi)
       self.update(trace=False)
