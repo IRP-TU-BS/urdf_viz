@@ -1,6 +1,6 @@
 # URDF Visualization Tool
 
-This tool provides an easy way of visualizing a model defined in URDF and also interact with it.
+This tool provides an easy way of visualizing and interacting with a model defined in [URDF](http://wiki.ros.org/urdf).
 It is based on [pyrender](https://github.com/mmatl/pyrender) and represents an extension of an [implementation](https://dfki-ric.github.io/pytransform3d/_auto_examples/visualizations/render_urdf.html) by the DFKI.
 
 ## Getting started
@@ -41,14 +41,15 @@ Both versions assume that somewhere within the relative root path `..` exists a 
 
 ## Applying forward and inverse kinematics calculation
 
-Probably, you already mentioned the message about a missing kinematics library in the terminal.
-This is due to the fact, that the template class `Kinematics` has no implementation for that.
+Probably, you already noticed the message about a missing kinematics library in the terminal.
+This is due to the fact that the template class `Kinematics` has no implementation, yet.
 Feel free to choose any kinematics library you like.
 As an example, have a look at the following script:
 
 ```
 #!/bin/python3
 
+import sys
 import file_utils as fu
 import urdf_viz as uv
 
@@ -61,6 +62,6 @@ path = fu.findFile(file, "..", "panda", True)
 panda_viz = uv.UrdfVisualizer(path, file, pk.PandaKinematics())
 ```
 
-If you checkout and build the [Panda Analytical Kinematics](https://git.rob.cs.tu-bs.de/public_repos/irp_papers/panda_analytical_kinematics) repository as `panda_kin` parallel to this repository, you should be able to run the script including all inverse kinematics functionality.
+If you checkout and build the [Panda Analytical Kinematics](https://git.rob.cs.tu-bs.de/public_repos/irp_papers/panda_analytical_kinematics) repository as `panda_kin` parallel to this repository, you should be able to run the script including all inverse kinematics functionality, which is available via the wrapper class `PandaKinematics`.
 
 For any questions, feel free to contact the developer ;)

@@ -13,8 +13,6 @@ Pyrender's list of commands has been preserved.
 Additionally, more features were added.
 You can find a list of features by pressing h while the tool is running.
 (Watch the command line output!)
-
-This script is
 """
 try:
     import pyrender as pr
@@ -50,7 +48,7 @@ class UrdfVisualizer(pr.Viewer):
                poses=[[.25, .0, .75, M_PI, .0, .0, .0]], size=(640, 480)):
     global HELP_TEXT
     np.set_printoptions(precision=4, suppress=True)
-    self._scene = pr.Scene()
+    self._scene = pr.Scene(bg_color=(255, 255, 255, 0))
 
     self._cam_poses = [( "y_cam", np.array([[ 1,  0,  0,  0],
                                             [ 0,  0, -1, -1],
@@ -58,6 +56,10 @@ class UrdfVisualizer(pr.Viewer):
                                             [ 0,  0,  0,  1]])),
                        ( "x_cam", np.array([[ 0,  0, -1, -1],
                                             [-1,  0,  0,  0],
+                                            [ 0,  1,  0,   .45],
+                                            [ 0,  0,  0,  1]])),
+                       ("-x_cam", np.array([[ 0,  0,  1,  1],
+                                            [ 1,  0,  0,  0],
                                             [ 0,  1,  0,   .45],
                                             [ 0,  0,  0,  1]])),
                        ("-z_cam", np.array([[ 1,  0,  0,  0],
@@ -82,11 +84,12 @@ class UrdfVisualizer(pr.Viewer):
     self._joint_vals = {name : 0 for name in self._utm._joints if self._utm._joints[name][-1] != 'fixed'}
     self._poses = poses
     self._pose_index = 0
-    self._ee_pose = self._poses[self._pose_index]
+    self._ee_pose = np.array(self._poses[self._pose_index])
     self._diff = .125
     self._trace = None
     self._untrace = None
     self._info = {}
+    self._animate = True
     self._clear = False
     self._ik_status = [0]
     self._ik_choice = -1
@@ -109,7 +112,8 @@ class UrdfVisualizer(pr.Viewer):
         (0x2e,   ".",     ""),
         ] + [(k + 0x30, k, "") for k in range(9)] + [
         (0x39,    9,      "0..9:        joint indices"),
-        (0x63,   "c",     "c:           togle 'clear view' (show/hide text)"),
+        (0x61,   "a",     "a:           animation cycle"),
+        (0x63,   "c",     "c:           toggle 'clear view' (show/hide text)"),
         (0x66,   "f",     "f:           find special redundancy pose (e.g. elbow x -> 0)"),
         (0x68,   "h",     "h:           print this help text"),
         (0x6b,   "k",     "k:           print something"),
@@ -328,7 +332,6 @@ class UrdfVisualizer(pr.Viewer):
     goal = self._kinematics.ik(self._ee_pose[:6], q,
                                optionals = [self._ee_pose[6], self._ik_choice],
                                results = self._ik_status)
-    # goal[1] += 0.71754 # TODO: remove this magic
     if not np.isnan(goal).any():
       j = 0
       for joint in self._joint_vals.keys():
@@ -371,6 +374,8 @@ class UrdfVisualizer(pr.Viewer):
       self.update(cam=True)
       message = f"camera changed: {self._cam_poses[self._cam_index][0]}"
       self.add_info("BR", message, .99, .01, countdown=4)
+    elif input == 'a':
+      self._animate = True
     elif input == 'c':
       self._clear = not self._clear
     elif input == 'f':
@@ -429,6 +434,9 @@ class UrdfVisualizer(pr.Viewer):
       else:
         self._info[key] = (info[0], info[1], info[2], info[3], info[4], info[5],
                            info[6], max(info[-2] - 1, 0), info[-1])
+
+    if self._animate:
+      self.move_axis()
 
   def get_axis_name(self, axis):
     name = ""
@@ -535,14 +543,25 @@ class UrdfVisualizer(pr.Viewer):
     if axis < 0:
       if change in ["t+", "t-"] and axis < -1:
         self._ee_pose[axis - 3] += diff
+        self._animate = False
       else:
         self._ee_pose[axis] += diff * np.pi
+        x0 = self._poses[self._pose_index][axis]
+        if self._ee_pose[axis] >= x0 + 2 * np.math.pi - .0001:
+          self._ee_pose[axis] = x0
+          self._animate = False
       self.apply_ik(trace=axis<-1)
     elif axis > 0 and axis <= len(self._joint_vals):
       joint = list(self._joint_vals.keys())[axis - 1]
       qi = self.get_joint(joint) if joint in self._joint_vals else 0
-      self.set_joint(joint, qi + diff * np.pi)
+      qi += diff * np.pi
+      if qi >= 2 * np.math.pi - .0001:
+        qi = qi - 2 * np.math.pi
+        self._animate = False
+      self.set_joint(joint, qi)
       self.update(trace=False)
+    else:
+      self._animate = False
 
   def set_axis(self, axis, val):
     if axis == 0:
@@ -561,30 +580,11 @@ class UrdfVisualizer(pr.Viewer):
     self._pose_index = self._pose_index + 1 if index is None else index
     pose = self._poses[self._pose_index % len(self._poses)]
     for i in range(-7, 0): self._ee_pose[i] = pose[i]
-    self.apply_ik(update=False)
-    diff = self._diff
-    elbow = self.utm.get_transform("elbow", "world")
-    ex = elbow[0,3]
-    exLast = ex
-    it = 50 # maximum iterations
-    while abs(ex) > .0000001:
-      if (exLast > 0) != (ex > 0):
-        diff /= -2
-      elif abs(exLast) < abs(ex):
-        diff *= -1
-      self._ee_pose[-1] += diff
-      self.apply_ik(update=False)
-      elbow = self.utm.get_transform("elbow", "world")
-      exLast = ex
-      ex = elbow[0,3]
-      print(f"[{50-it:2d}] wr: {self._ee_pose[-1]:20}, diff: {diff:6} -> last {exLast:20}, ex: {ex:20}")
-      it -= 1
-      if it <= 0:
-        print(f"MAXIMUM ITERATIONS EXCEEDED! Stop searching for ex = 0!")
-        break
+    print(pose)
     self.apply_ik(trace=True)
 
   def find_pose(self):
+    self.apply_ik(update=False)
     diff = self._diff
     elbow = self.utm.get_transform("elbow", "world")
     ex = elbow[0,3]
@@ -656,9 +656,11 @@ class UrdfVisualizer(pr.Viewer):
     if not self._trace is None:
       w = self._ee_pose[-1]
       ik_errors = []
-      numPoints = 2**5
+      numPoints = 2**7
       ik = self._ik_choice
-      for self._ik_choice in range(len(points)):
+      ikRange = range(len(points) - 1, -1, -1) if ik < 0 else range(ik, ik+1)
+      print(f"trace: {list(ikRange)}")
+      for self._ik_choice in ikRange:
         self._ee_pose[-1] = 0
         for i in range(numPoints):
           self._ee_pose[-1] += 2 * np.pi / numPoints
@@ -682,8 +684,8 @@ class UrdfVisualizer(pr.Viewer):
                 trimesh.creation.box(extents=[objScale*3]*3),
                 trimesh.creation.cylinder(radius=objScale*2, height=objScale*3),
                 trimesh.creation.cone(radius=objScale*3, height=objScale*4, transform=coneTf)]
-      colors = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 1.0]]
-      for i in range(len(points)):
+      colors = [[0.0, 1.0, 0.7], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+      for i in ikRange:
         meshes[i].visual.vertex_colors = colors[i]
         tfs = np.tile(np.eye(4), (len(points[i]), 1, 1))
         tfs[:,:3,3] = points[i]
