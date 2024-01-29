@@ -1,7 +1,7 @@
 # URDF Visualization Tool
 
 This tool provides an easy way of visualizing and interacting with a model defined in [URDF](http://wiki.ros.org/urdf).
-It is based on [pyrender](https://github.com/mmatl/pyrender) and represents an extension of an [implementation](https://dfki-ric.github.io/pytransform3d/_auto_examples/visualizations/render_urdf.html) by the DFKI.
+It is based on [pyrender](https://github.com/mmatl/pyrender) and extends an example script from [pytransform3d](https://github.com/dfki-ric/pytransform3d/blob/c45e817c4a7960108afe9f5259542c8376c0e89a/examples/visualizations/render_urdf.py).
 
 ## Getting started
 
