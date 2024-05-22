@@ -100,18 +100,6 @@ class Utils(UpdateScene):
                 file.write(f",{self._joint_vals[j]}")
             file.write("\n")
 
-    def print_info(self, frames=None) -> None:
-        if frames is None:
-            frames = self._transforms
-        last = np.eye(4)
-        for frame, ref in frames:
-            print(f"{frame} ({ref}):")
-            tf = self._utm.get_transform(frame, ref)
-            for line in tf:
-                print("  [", " ".join([f"{el:7.4f}" for el in line]), "]")
-            print(f"  length: {np.linalg.norm(tf[:3,3])}")
-            print(f"  d_last: {tf[:3,3] - last[:3,3]}")
-            last = tf
 
     def get_axis_name(self, axis: int) -> str:
         name: str = ""

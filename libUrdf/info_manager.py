@@ -22,6 +22,19 @@ class InfoDisplayManager(SceneInitializer):
 
     def remove_info(self, key: any) -> None:
         self._info.pop(key)
+        
+    def print_info(self, frames=None) -> None:
+        if frames is None:
+            frames = self._transforms
+        last = np.eye(4)
+        for frame, ref in frames:
+            print(f"{frame} ({ref}):")
+            tf = self._utm.get_transform(frame, ref)
+            for line in tf:
+                print("  [", " ".join([f"{el:7.4f}" for el in line]), "]")
+            print(f"  length: {np.linalg.norm(tf[:3,3])}")
+            print(f"  d_last: {tf[:3,3] - last[:3,3]}")
+            last = tf
 
     def update_info(self) -> None:
         line = 0
