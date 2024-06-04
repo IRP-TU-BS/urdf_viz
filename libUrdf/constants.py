@@ -54,6 +54,7 @@ ASCII_MAP: list[tuple] = (
     # ASCII keys for special functions
     + [
         (0x39, 9, "0..9:        joint indices"),
+        (0x61, "a", "a:           animation cycle"),
         (0x63, "c", "c:           togle 'clear view' (show/hide text)"),
         (0x66, "f", "f:           find special redundancy pose (e.g. elbow x -> 0)"),
         (0x68, "h", "h:           print this help text"),
