@@ -1,8 +1,6 @@
 import numpy as np
 
 from libUrdf.utils import Utils
-from libUrdf.constants import SHIFT_KEY
-
 
 class UserInputHandler(Utils):
     """
@@ -10,20 +8,6 @@ class UserInputHandler(Utils):
     It overrides the `on_key_press` and `on_key_release` methods from `pyglet.window.Window`
     to handle key presses and releases.
     """
-
-    def on_key_press(self, symbol, modifiers):
-        if symbol == SHIFT_KEY:
-            self.registered_keys = {}
-        else:
-            if hasattr(super(), "on_key_press"):
-                super().on_key_press(symbol, modifiers)
-
-    def on_key_release(self, symbol, modifiers):
-        if symbol == SHIFT_KEY:
-            self.registered_keys = self._keyboard_shortcuts
-        else:
-            if hasattr(super(), "on_key_release"):
-                super().on_key_release(symbol, modifiers)
 
     def process_input(self, input: any) -> None:
         if self.process_pending_input(input):

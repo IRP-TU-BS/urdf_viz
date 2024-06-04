@@ -28,7 +28,7 @@ from pytransform3d import urdf
 import file_utils as fu
 import kinematics as kin
 
-from libUrdf.constants import PI
+from libUrdf.constants import PI, SHIFT_KEY
 from libUrdf.geometry_rendering import box_show, sphere_show, cylinder_show, mesh_show
 from libUrdf.user_input_handler import UserInputHandler
 from libUrdf.scene_init import SceneInitializer
@@ -93,6 +93,20 @@ class UrdfVisualizer(pr.Viewer, UserInputHandler, MotionTracer):
         if self._animate:
             self.move_axis()
 
+    def on_key_press(self, symbol, modifiers):
+        if symbol == SHIFT_KEY:
+            self.registered_keys = {}
+        else:
+            if hasattr(super(), "on_key_press"):
+                super().on_key_press(symbol, modifiers)
+
+    def on_key_release(self, symbol, modifiers):
+        if symbol == SHIFT_KEY:
+            self.registered_keys = self._keyboard_shortcuts
+        else:
+            if hasattr(super(), "on_key_release"):
+                super().on_key_release(symbol, modifiers)
+                
     def add_geometry(self, name: str, geom: urdf.Geometry, tf: np.ndarray) -> None:
         name = "visual:" + name
         geom.frame = name
