@@ -1,7 +1,7 @@
 import numpy as np
 
-from urdf_viz.libUrdf.utils import Utils
-from urdf_viz.libUrdf.constants import SHIFT_KEY
+from libUrdf.utils import Utils
+from libUrdf.constants import SHIFT_KEY
 
 
 class UserInputHandler(Utils):

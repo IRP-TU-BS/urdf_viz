@@ -2,8 +2,8 @@ import trimesh
 import numpy as np
 import pyrender as pr
 from pyrender import trackball as tb
-from urdf_viz.libUrdf.info_manager import InfoDisplayManager
-from urdf_viz.libUrdf.constants import VISUALS, COLLISIONS, FRAMES
+from libUrdf.info_manager import InfoDisplayManager
+from libUrdf.constants import VISUALS, COLLISIONS, FRAMES
 
 
 class UpdateScene(InfoDisplayManager):

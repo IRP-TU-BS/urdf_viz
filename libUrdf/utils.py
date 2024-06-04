@@ -1,6 +1,6 @@
 import numpy as np
-from urdf_viz.libUrdf.update_scene import UpdateScene
-from urdf_viz.libUrdf.constants import PI
+from libUrdf.update_scene import UpdateScene
+from libUrdf.constants import PI
 
 
 class Utils(UpdateScene):

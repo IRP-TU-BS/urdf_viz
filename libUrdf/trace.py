@@ -1,8 +1,8 @@
 import trimesh
 import numpy as np
 import pyrender as pr
-from urdf_viz.libUrdf.update_scene import UpdateScene
-from urdf_viz.libUrdf.constants import PI
+from libUrdf.update_scene import UpdateScene
+from libUrdf.constants import PI
 
 
 class MotionTracer(UpdateScene):

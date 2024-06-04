@@ -1,6 +1,6 @@
 import numpy as np
-from urdf_viz.libUrdf.scene_init import SceneInitializer
-from urdf_viz.libUrdf.constants import ALIGNS
+from libUrdf.scene_init import SceneInitializer
+from libUrdf.constants import ALIGNS
 
 
 class InfoDisplayManager(SceneInitializer):

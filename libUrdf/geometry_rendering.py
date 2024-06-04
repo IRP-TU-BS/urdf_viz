@@ -3,7 +3,7 @@ import pyrender as pr
 import trimesh, trimesh.scene
 from pytransform3d import urdf
 from pytransform3d.transformations import transform
-from urdf_viz.libUrdf.constants import MATERIAL, PI
+from libUrdf.constants import MATERIAL, PI
 
 """Custom geometry rendering functions."""
 def box_show(self: urdf.Box, uviz, tf):

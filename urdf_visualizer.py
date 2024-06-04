@@ -25,14 +25,14 @@ import sys
 import numpy as np
 from pytransform3d import urdf
 
-import urdf_viz.file_utils as fu
-import urdf_viz.kinematics as kin
+import file_utils as fu
+import kinematics as kin
 
-from urdf_viz.libUrdf.constants import PI
-from urdf_viz.libUrdf.geometry_rendering import box_show, sphere_show, cylinder_show, mesh_show
-from urdf_viz.libUrdf.user_input_handler import UserInputHandler
-from urdf_viz.libUrdf.scene_init import SceneInitializer
-from urdf_viz.libUrdf.trace import MotionTracer
+from libUrdf.constants import PI
+from libUrdf.geometry_rendering import box_show, sphere_show, cylinder_show, mesh_show
+from libUrdf.user_input_handler import UserInputHandler
+from libUrdf.scene_init import SceneInitializer
+from libUrdf.trace import MotionTracer
 
 
 class UrdfVisualizer(pr.Viewer, UserInputHandler, MotionTracer):
@@ -90,6 +90,8 @@ class UrdfVisualizer(pr.Viewer, UserInputHandler, MotionTracer):
             else:
                 self._info[key] = (info[0], info[1], info[2], info[3], info[4], 
                                    info[5], info[6], max(info[-2] - 1, 0), info[-1])
+        if self._animate:
+            self.move_axis()
 
     def add_geometry(self, name: str, geom: urdf.Geometry, tf: np.ndarray) -> None:
         name = "visual:" + name

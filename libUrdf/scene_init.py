@@ -1,7 +1,7 @@
 import numpy as np
 import pyrender as pr
 from pytransform3d import urdf
-from urdf_viz.libUrdf.constants import CAM_POSES, ASCII_MAP
+from libUrdf.constants import CAM_POSES, ASCII_MAP
 
 class SceneInitializer:
     """Initialize the scene, set up the camera, load the URDF file and initialize the variables."""
