@@ -50,9 +50,9 @@
       </geometry>
     </visual>
     <visual>
-      <origin xyz="0 0 .03" />
+      <origin xyz="0 0 .05" />
       <geometry>
-        <cylinder radius=".03" length=".06" />
+        <cylinder radius=".03" length=".1" />
       </geometry>
     </visual>
   </link>
