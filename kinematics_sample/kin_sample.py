@@ -17,7 +17,7 @@ class KinematicsSample(Kinematics):
             + self.links[3] * np.sin(theta1 + theta2 + theta3)
         )
         z = (
-            self.links[0] *  np.cos(theta1)
+            self.links[0]
             + self.links[1] * np.cos(theta1)
             + self.links[2] * np.cos(theta1 + theta2)
             + self.links[3] * np.cos(theta1 + theta2 + theta3)
