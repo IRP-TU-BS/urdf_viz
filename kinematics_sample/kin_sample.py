@@ -4,11 +4,18 @@ import numpy as np
 from kinematics import Kinematics
 
 class KinematicsSample(Kinematics):
+    """
+    KinematicsSAmple is a subclass of the Kinematics class, designed to perform
+    forward (and inverse) kinematics for a simple 3R robot model.
+    """
     def __init__(self):
         super().__init__()
-        self.links = [0.3, 0.3, 0.3, 0.1]
+        self.links = [0.3, 0.3, 0.3, 0.1]  # Lengths of links
 
     def fk(self, joints, name="", resultList=[0]):
+        """
+        Compute forward kinematics of the 3R robot model.
+        """
         theta1, theta2, theta3 = (joints)
 
         x = (
@@ -24,7 +31,7 @@ class KinematicsSample(Kinematics):
         )
 
         y = 0
-        # Die letzten 3 Elemente sind für die Orientierung, die hier auf 0 gesetzt werden
+        # The position of the end-effector without orientation
         result = np.array([x, y, z, 0, 0, 0])
 
         return result
