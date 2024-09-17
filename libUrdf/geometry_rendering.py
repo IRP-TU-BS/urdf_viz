@@ -19,13 +19,14 @@ def box_show(self: urdf.Box, uviz, tf):
       [1, 1, 1]
   ])
     corners = (corners - 0.5) * self.size
-    corners = transform(tf, np.hstack((corners, np.ones((len(corners), 1)))))[:, :3]
+    #corners = transform(tf, np.hstack((corners, np.ones((len(corners), 1)))))[:, :3]
+    print(f"box corners:\n{corners}")
     mesh = trimesh.Trimesh(
         vertices=corners, faces=[[0, 1, 2], [2, 3, 4], [4, 5, 6], [6, 7, 0]]
     ).bounding_box
     MATERIAL.baseColorFactor = self.color
     mesh = pr.Mesh.from_trimesh(mesh, material=MATERIAL)
-    node = uviz.scene.add(mesh, name=self.frame)
+    node = uviz.scene.add(mesh, name=self.frame, pose=tf)
 
     return node
 

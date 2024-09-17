@@ -121,7 +121,7 @@ class UserInputHandler(Utils):
         valid = False
         if key == "enter":
             valid = True
-            self.update_axis(axis, float("0" + value))
+            self.update_axis(axis, float(("0" + value).replace("0-", "-0")))
             self._pending_input = (None, "")
         elif key == "esc":
             valid = True

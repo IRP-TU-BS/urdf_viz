@@ -27,10 +27,16 @@ class UpdateScene(InfoDisplayManager):
         elif axis < 0:
             self._ee_pose[axis] = value
             self.apply_ik(trace=axis < -1)
-        elif axis <= len(self._utm._joints):
-            joint = list(self._utm._joints.keys())[axis - 1]
+        elif axis <= len(self._joint_vals):
+            joint = list(self._joint_vals.keys())[axis - 1]
             self.set_joint(joint, value)
             self.update_scene(trace=False)
+
+    def apply_jconf(self, jconf: list, update = True, trace = False) -> None:
+      for joint in self._joint_vals.keys():
+        if len(jconf) == 0: break
+        self.set_joint(joint, jconf.pop(0))
+      self.update_scene(trace=trace)
 
     def apply_ik(self, update=True, trace=False) -> None:
         q = [self._joint_vals[name] for name in self._joint_vals]

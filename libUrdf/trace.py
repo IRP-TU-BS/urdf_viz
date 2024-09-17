@@ -7,9 +7,9 @@ from libUrdf.constants import PI
 
 class MotionTracer(UpdateScene):
     """
-    This class is responsible for visualizing the motion of a robot arm and tracing out the path of the end-effector. 
-    
-    It updates the trace of the motion by clearing the existing trace meshes, calculating the inverse kinematics range, 
+    This class is responsible for visualizing the motion of a robot arm and tracing out the path of the end-effector.
+
+    It updates the trace of the motion by clearing the existing trace meshes, calculating the inverse kinematics range,
     creating trace meshes, and adding them to the scene.
     """
     def update_trace(self) -> None:
@@ -20,9 +20,9 @@ class MotionTracer(UpdateScene):
             frame = self._trace + "_trace"
             if not self._utm.has_frame(frame):
                 self._utm.add_transform(frame, "world", np.eye(4))
-            
+
             self._create_trace_mesh(ikRange, points, frame)
-        
+
         self._untrace = self._trace
 
     def _clear_trace(self, len_points: int) -> None:
@@ -36,7 +36,7 @@ class MotionTracer(UpdateScene):
     def _calculate_ik_range(self, points: list)-> range:
         w = self._ee_pose[-1]
         ik_errors = []
-        numPoints = 2**7
+        numPoints = 2**6
         ik = self._ik_choice
         ikRange = range(len(points) - 1, -1, -1) if ik < 0 else range(ik, ik + 1)
         print(f"trace: {list(ikRange)}")
@@ -46,7 +46,8 @@ class MotionTracer(UpdateScene):
                 self._ee_pose[-1] += 2 * PI / numPoints
                 self.apply_ik(False)
                 A2B = self._utm.get_transform(self._trace, "world")
-                points[self._ik_choice] += [A2B[:3, 3]]
+                if self._ik_status[0] == 0:
+                  points[self._ik_choice] += [A2B[:3, 3]]
                 if self._ik_status[0] != 0:
                     ik_errors += [(i, self._ik_status)]
         self._ee_pose[-1] = w
@@ -59,7 +60,7 @@ class MotionTracer(UpdateScene):
     def _create_trace_mesh(self, ikRange: range, points: list, frame: str   ) -> None:
         coneTf = np.eye(4)
         coneTf[2][3] = -0.0015
-        objScale = 0.0004
+        objScale = 0.002
         meshes = [trimesh.creation.uv_sphere(radius=objScale * 2),
                   trimesh.creation.box(extents=[objScale * 3] * 3),
                   trimesh.creation.cylinder(radius=objScale * 2, height=objScale * 3),

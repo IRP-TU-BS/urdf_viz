@@ -56,16 +56,19 @@ class UrdfViz(pr.Viewer, UserInputHandler, MotionTracer):
         Size of the visualization window
     """
 
-    def __init__(self, path, filename="model.urdf", kinematics=kin_sample.KinematicsSample(), 
+    def __init__(self, path, filename="model.urdf", kinematics=kin_sample.KinematicsSample(), jconf=[],
                  rate=1, poses=[[0.25, 0.0, 0.65, 0.0, PI, 0.0, 0.0]], size=(640, 480)):
         self._poses: list = poses
         self._kinematics: kin = kinematics
         self._rate: float = rate
         SceneInitializer.__init__(self, path, filename)
 
-        self.apply_ik()
+        if len(jconf) > 0:
+          self.apply_jconf(jconf)
+        else:
+          self.apply_ik()
 
-        pr.Viewer.__init__(self, self.scene, run_in_thread=True, viewport_size=size, refresh_rate=rate, 
+        pr.Viewer.__init__(self, self.scene, run_in_thread=True, viewport_size=size, refresh_rate=rate,
                            use_raymond_lighting=True, use_perspective_cam=False)
         self.viewer_flags["view_center"] = self._centroid
         self.registered_keys = self._keyboard_shortcuts
@@ -76,7 +79,7 @@ class UrdfViz(pr.Viewer, UserInputHandler, MotionTracer):
         super()._render()
         vx = self._viewport_size[0]
         vy = self._viewport_size[1]
-        
+
         decrease = []
         for key, info in self._info.items():
             py = vy * info[2] - info[-1] * info[4] * 1.2
@@ -89,7 +92,7 @@ class UrdfViz(pr.Viewer, UserInputHandler, MotionTracer):
             if info[-2] == 0:
                 self.remove_info(key)
             else:
-                self._info[key] = (info[0], info[1], info[2], info[3], info[4], 
+                self._info[key] = (info[0], info[1], info[2], info[3], info[4],
                                    info[5], info[6], max(info[-2] - 1, 0), info[-1])
         if self._animate:
             self.move_axis()
@@ -107,7 +110,7 @@ class UrdfViz(pr.Viewer, UserInputHandler, MotionTracer):
         else:
             if hasattr(super(), "on_key_release"):
                 super().on_key_release(symbol, modifiers)
-                
+
     def add_geometry(self, name: str, geom: urdf.Geometry, tf: np.ndarray) -> None:
         name = "visual:" + name
         geom.frame = name
@@ -124,14 +127,14 @@ class UrdfViz(pr.Viewer, UserInputHandler, MotionTracer):
         sph.radius = radius
         self.add_geometry(name, sph, tf)
 
-    def add_cylinder(self, name: str, length: float, radius: float, 
+    def add_cylinder(self, name: str, length: float, radius: float,
                      tf: np.ndarray = np.eye(4), color: list = [0, 0, 255, 255]) -> None:
         cyl = urdf.Cylinder(name, ".", ".", color)
         cyl.length = length
         cyl.radius = radius
         self.add_geometry(name, cyl, tf)
 
-    def add_line(self, name: str, start: np.ndarray, end: np.ndarray, 
+    def add_line(self, name: str, start: np.ndarray, end: np.ndarray,
                  color: list = [0, 0, 255, 255], thickness: float = 0.002) -> None:
         cyl = urdf.Cylinder(name, ".", ".", color)
         cyl.length = 1
@@ -145,7 +148,7 @@ class UrdfViz(pr.Viewer, UserInputHandler, MotionTracer):
         cyl.radius = 1
         self.add_geometry(name, cyl, [normal, point])
 
-    def add_transform(self, name: str, tf: np.ndarray = np.eye(4), parent: str = "world", 
+    def add_transform(self, name: str, tf: np.ndarray = np.eye(4), parent: str = "world",
                       ref: str = "world", info: bool = False) -> None:
         if self._utm.has_frame("visual:" + parent):
             parent = "visual:" + parent
