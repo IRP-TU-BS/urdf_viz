@@ -33,6 +33,7 @@ from libUrdf.geometry_rendering import box_show, sphere_show, cylinder_show, mes
 from libUrdf.user_input_handler import UserInputHandler
 from libUrdf.scene_init import SceneInitializer
 from libUrdf.trace import MotionTracer
+from kinematics_sample import kin_sample
 
 
 class UrdfViz(pr.Viewer, UserInputHandler, MotionTracer):
@@ -55,8 +56,8 @@ class UrdfViz(pr.Viewer, UserInputHandler, MotionTracer):
         Size of the visualization window
     """
 
-    def __init__(self, path, filename="model.urdf", kinematics=kin.Kinematics(), 
-                 rate=1, poses=[[0.25, 0.0, 0.75, PI, 0.0, 0.0, 0.0]], size=(640, 480)):
+    def __init__(self, path, filename="model.urdf", kinematics=kin_sample.KinematicsSample(), 
+                 rate=1, poses=[[0.25, 0.0, 0.65, 0.0, PI, 0.0, 0.0]], size=(640, 480)):
         self._poses: list = poses
         self._kinematics: kin = kinematics
         self._rate: float = rate
