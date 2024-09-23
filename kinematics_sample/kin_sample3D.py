@@ -19,18 +19,14 @@ class KinematicsSample3D(Kinematics):
         """
         theta1, theta2, theta3, theta4 = joints
 
-        x = (
-            self.links[2] * np.sin(theta2)
+        tmp = (self.links[2] * np.sin(theta2)
             + self.links[3] * np.sin(theta2 + theta3)
-            + self.links[4] * np.sin(theta2 + theta3 + theta4)
-        ) * np.cos(theta1)
+            + self.links[4] * np.sin(theta2 + theta3 + theta4))
 
-        y = -(
-            self.links[2] * np.sin(theta2)
-            + self.links[3] * np.sin(theta2 + theta3)
-            + self.links[4] * np.sin(theta2 + theta3 + theta4)
-        ) * np.sin(theta1)
+        x = tmp * np.cos(theta1)
 
+        y = tmp * np.sin(theta1)
+        
         z = (
             self.links[0]
             + self.links[1]
