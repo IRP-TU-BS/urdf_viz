@@ -1,0 +1,101 @@
+<robot name="dummy3r_3d">
+
+  <link name="world"/>
+
+  <link name="link1a">
+    <visual>
+      <origin xyz="0 0 .075" />
+      <geometry>
+        <cylinder radius=".03" length=".15" />
+      </geometry>
+    </visual>
+  </link>
+
+  <link name="link1b">
+    <visual>
+      <origin xyz="0 0 .075" />
+      <geometry>
+        <cylinder radius=".03" length=".15" />
+      </geometry>
+    </visual>
+  </link>
+
+  <link name="link2">
+    <visual>
+      <origin rpy="1.5708 0 0" />
+      <geometry>
+        <cylinder radius=".04" length=".08" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 .15" />
+      <geometry>
+        <cylinder radius=".03" length=".3" />
+      </geometry>
+    </visual>
+  </link>
+
+  <link name="link3">
+    <visual>
+      <origin rpy="1.5708 0 0" />
+      <geometry>
+        <cylinder radius=".04" length=".08" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 .15" />
+      <geometry>
+        <cylinder radius=".03" length=".3" />
+      </geometry>
+    </visual>
+  </link>
+
+  <link name="link4">
+    <visual>
+      <origin rpy="1.5708 0 0" />
+      <geometry>
+        <cylinder radius=".04" length=".08" />
+      </geometry>
+    </visual>
+    <visual>
+      <origin xyz="0 0 .05" />
+      <geometry>
+        <cylinder radius=".03" length=".1" />
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="joint0" type="fixed">
+    <parent link="world"/>
+    <child link="link1a"/>
+  </joint>
+  
+  <joint name="joint1" type="revolute">
+    <parent link="link1a"/>
+    <child link="link1b"/>
+    <origin xyz="0 0 .15" />
+    <axis xyz="0 0 1" />
+  </joint>
+
+  <joint name="joint2" type="revolute">
+    <parent link="link1b"/>
+    <child link="link2"/>
+    <origin xyz="0 0 .15" />
+    <axis xyz="0 1 0" />
+  </joint>
+
+  <joint name="joint3" type="revolute">
+    <parent link="link2"/>
+    <child link="link3"/>
+    <origin xyz="0 0 .3" />
+    <axis xyz="0 1 0" />
+  </joint>
+
+  <joint name="joint4" type="revolute">
+    <parent link="link3"/>
+    <child link="link4"/>
+    <origin xyz="0 0 .3" />
+    <axis xyz="0 1 0" />
+  </joint>
+
+</robot>
