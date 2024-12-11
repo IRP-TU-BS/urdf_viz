@@ -32,6 +32,7 @@ from libUrdf.constants import PI, SHIFT_KEY
 from libUrdf.geometry_rendering import box_show, sphere_show, cylinder_show, mesh_show
 from libUrdf.user_input_handler import UserInputHandler
 from libUrdf.scene_init import SceneInitializer
+from libUrdf.info_manager import InfoDisplayManager
 from libUrdf.trace import MotionTracer
 from kinematics_sample import kin_sample
 
@@ -57,11 +58,12 @@ class UrdfViz(pr.Viewer, UserInputHandler, MotionTracer):
     """
 
     def __init__(self, path, filename="model.urdf", kinematics=kin_sample.KinematicsSample(), jconf=[],
-                 rate=1, poses=[[0.25, 0.0, 0.65, 0.0, PI, 0.0, 0.0]], size=(640, 480)):
+                 rate=1, poses=[[0.25, 0.0, 0.65, 0.0, PI, 0.0, 0.0]], size=(1000, 1200)):
         self._poses: list = poses
         self._kinematics: kin = kinematics
         self._rate: float = rate
         SceneInitializer.__init__(self, path, filename)
+        InfoDisplayManager.__init__(self)
 
         if len(jconf) > 0:
           self.apply_jconf(jconf)
@@ -180,3 +182,10 @@ if __name__ == "__main__":
 
     print(f"Visualize model defined in: {path}/{filename}")
     uviz = UrdfViz(path, filename)
+
+    # manipulate scene
+    uviz.add_transform("elbow", parent = "link3", info = True)
+    uviz.add_display_frame("elbow")
+
+    # update to let the changes take effect
+    uviz.update_scene()
